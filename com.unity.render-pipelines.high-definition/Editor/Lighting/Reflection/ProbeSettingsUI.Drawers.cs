@@ -94,6 +94,8 @@ namespace UnityEditor.Rendering.HighDefinition
             }
 
             PropertyFieldWithoutToggle(ProbeSettingsFields.roughReflections, serialized.roughReflections, EditorGUIUtility.TrTextContent("Rough Reflections", "When disabled the reflections evaluated using the planar reflection will be perfectly smooth. This save GPU time when the planar reflection is used as a pure mirror."), displayedFields.probe);
+
+            PropertyFieldWithoutToggle(ProbeSettingsFields.distanceBasedRoughness, serialized.distanceBasedRoughness, EditorGUIUtility.TrTextContent("Distance Based Roughness", "When enabled, reflections evaluated using Reflection Probes use the proxy to make them more physically accurate."), displayedFields.probe);
             
             if ((displayedFields.probe & proxy) != 0)
             {

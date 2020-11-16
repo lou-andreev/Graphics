@@ -70,7 +70,8 @@ namespace UnityEditor.Rendering.HighDefinition
 
         ProbeSettingsOverride HDProbeUI.IProbeUISettingsProvider.displayedCaptureSettings => new ProbeSettingsOverride
         {
-            probe = ProbeSettingsFields.proxyCapturePositionProxySpace,
+            probe = ProbeSettingsFields.proxyCapturePositionProxySpace
+                    | ProbeSettingsFields.distanceBasedRoughness,
             camera = new CameraSettingsOverride
             {
                 camera = (CameraSettingsFields)(-1) & ~(
