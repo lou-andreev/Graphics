@@ -32,6 +32,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 - Bloom in Gamma color-space now more closely matches Linear color-space, this will mean project using Bloom and Gamma color-space may need to adjust Bloom Intensity to match previous look.
 
 ### Fixed
+- Fixed an issue where the 2D Renderer was incorrectly rendering transparency with normal maps on an empty background.
 - Fixed an issue where Sprites on one Sorting Layer were fully lit even when there's no 2D light targeting that layer.
 - Fixed an issue where null reference exception was thrown when creating a 2D Renderer Data asset while scripts are compiling. [case 1263040](https://issuetracker.unity3d.com/issues/urp-nullreferenceexception-error-is-thrown-on-creating-2d-renderer-asset)
 - Fixed an issue where no preview would show for the lit sprite master node in shadergraph
