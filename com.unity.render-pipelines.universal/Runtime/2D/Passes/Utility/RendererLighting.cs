@@ -8,7 +8,7 @@ namespace UnityEngine.Experimental.Rendering.Universal
     {
         private static readonly ProfilingSampler m_ProfilingSampler = new ProfilingSampler("Draw Normals");
         private static readonly ShaderTagId k_NormalsRenderingPassName = new ShaderTagId("NormalsRendering");
-        private static readonly Color k_NormalClearColor = new Color(0.5f, 0.5f, 0.5f, 1.0f);
+        private static readonly Color k_NormalClearColor = new Color(0.5f, 0.5f, 1.0f, 1.0f);
         private static readonly string k_SpriteLightKeyword = "SPRITE_LIGHT";
         private static readonly string k_UsePointLightCookiesKeyword = "USE_POINT_LIGHT_COOKIES";
         private static readonly string k_LightQualityFastKeyword = "LIGHT_QUALITY_FAST";
@@ -50,12 +50,15 @@ namespace UnityEngine.Experimental.Rendering.Universal
         private static readonly int k_SrcBlendID = Shader.PropertyToID("_SrcBlend");
         private static readonly int k_DstBlendID = Shader.PropertyToID("_DstBlend");
         private static readonly int k_FalloffIntensityID = Shader.PropertyToID("_FalloffIntensity");
+        private static readonly int k_FalloffDistanceID = Shader.PropertyToID("_FalloffDistance");
+        private static readonly int k_FalloffOffsetID = Shader.PropertyToID("_FalloffOffset");
         private static readonly int k_LightColorID = Shader.PropertyToID("_LightColor");
         private static readonly int k_VolumeOpacityID = Shader.PropertyToID("_VolumeOpacity");
         private static readonly int k_CookieTexID = Shader.PropertyToID("_CookieTex");
         private static readonly int k_FalloffLookupID = Shader.PropertyToID("_FalloffLookup");
         private static readonly int k_LightPositionID = Shader.PropertyToID("_LightPosition");
         private static readonly int k_LightInvMatrixID = Shader.PropertyToID("_LightInvMatrix");
+        private static readonly int k_LightNoRotInvMatrixID = Shader.PropertyToID("_LightNoRotInvMatrix");
         private static readonly int k_InnerRadiusMultID = Shader.PropertyToID("_InnerRadiusMult");
         private static readonly int k_OuterAngleID = Shader.PropertyToID("_OuterAngle");
         private static readonly int k_InnerAngleMultID = Shader.PropertyToID("_InnerAngleMult");
@@ -83,7 +86,7 @@ namespace UnityEngine.Experimental.Rendering.Universal
         {
             if (renderScale != pass.rendererData.normalsRenderTargetScale)
             {
-                if (pass.rendererData.isNormalsRenderTargetValid)
+                if(pass.rendererData.isNormalsRenderTargetValid)
                 {
                     cmd.ReleaseTemporaryRT(pass.rendererData.normalsRenderTarget.id);
                 }
@@ -141,14 +144,6 @@ namespace UnityEngine.Experimental.Rendering.Universal
             cmd.ReleaseTemporaryRT(pass.rendererData.shadowsRenderTarget.id);
         }
 
-        public static void DrawPointLight(CommandBuffer cmd, Light2D light, Mesh lightMesh, Material material)
-        {
-            var scale = new Vector3(light.pointLightOuterRadius, light.pointLightOuterRadius, light.pointLightOuterRadius);
-            var matrix = Matrix4x4.TRS(light.transform.position, light.transform.rotation, scale);
-            cmd.DrawMesh(lightMesh, matrix, material);
-        }
-
-
         private static void RenderLightSet(IRenderPass2D pass, RenderingData renderingData, int blendStyleIndex, CommandBuffer cmd, int layerToRender, RenderTargetIdentifier renderTexture, List<Light2D> lights)
         {
             foreach (var light in lights)
@@ -173,11 +168,13 @@ namespace UnityEngine.Experimental.Rendering.Universal
                         cmd.SetGlobalTexture(k_CookieTexID, light.lightCookieSprite.texture);
 
                     cmd.SetGlobalFloat(k_FalloffIntensityID, light.falloffIntensity);
+                    cmd.SetGlobalFloat(k_FalloffDistanceID, light.shapeLightFalloffSize);
+                    cmd.SetGlobalVector(k_FalloffOffsetID, light.shapeLightFalloffOffset);
                     cmd.SetGlobalColor(k_LightColorID, light.intensity * light.color);
                     cmd.SetGlobalFloat(k_VolumeOpacityID, light.volumeOpacity);
 
                     if (light.useNormalMap || light.lightType == Light2D.LightType.Point)
-                        SetPointLightShaderGlobals(pass, cmd, light);
+                        SetPointLightShaderGlobals(cmd, light);
 
                     // Light code could be combined...
                     if (light.lightType == Light2D.LightType.Parametric || light.lightType == Light2D.LightType.Freeform || light.lightType == Light2D.LightType.Sprite)
@@ -186,7 +183,9 @@ namespace UnityEngine.Experimental.Rendering.Universal
                     }
                     else if (light.lightType == Light2D.LightType.Point)
                     {
-                        DrawPointLight(cmd, light, lightMesh, lightMaterial);
+                        var scale = new Vector3(light.pointLightOuterRadius, light.pointLightOuterRadius, light.pointLightOuterRadius);
+                        var matrix = Matrix4x4.TRS(light.transform.position, Quaternion.identity, scale);
+                        cmd.DrawMesh(lightMesh, matrix, lightMaterial);
                     }
                 }
             }
@@ -216,12 +215,14 @@ namespace UnityEngine.Experimental.Rendering.Universal
                         cmd.SetGlobalTexture(k_CookieTexID, light.lightCookieSprite.texture);
 
                     cmd.SetGlobalFloat(k_FalloffIntensityID, light.falloffIntensity);
+                    cmd.SetGlobalFloat(k_FalloffDistanceID, light.shapeLightFalloffSize);
+                    cmd.SetGlobalVector(k_FalloffOffsetID, light.shapeLightFalloffOffset);
                     cmd.SetGlobalColor(k_LightColorID, light.intensity * light.color);
                     cmd.SetGlobalFloat(k_VolumeOpacityID, light.volumeOpacity);
 
                     // Is this needed
                     if (light.useNormalMap || light.lightType == Light2D.LightType.Point)
-                        SetPointLightShaderGlobals(pass, cmd, light);
+                        SetPointLightShaderGlobals(cmd, light);
 
                     // Could be combined...
                     if (light.lightType == Light2D.LightType.Parametric || light.lightType == Light2D.LightType.Freeform || light.lightType == Light2D.LightType.Sprite)
@@ -230,7 +231,9 @@ namespace UnityEngine.Experimental.Rendering.Universal
                     }
                     else if (light.lightType == Light2D.LightType.Point)
                     {
-                        DrawPointLight(cmd, light, lightMesh, lightVolumeMaterial);
+                        var scale = new Vector3(light.pointLightOuterRadius, light.pointLightOuterRadius, light.pointLightOuterRadius);
+                        var matrix = Matrix4x4.TRS(light.transform.position, Quaternion.identity, scale);
+                        cmd.DrawMesh(lightMesh, matrix, lightVolumeMaterial);
                     }
                 }
             }
@@ -249,7 +252,7 @@ namespace UnityEngine.Experimental.Rendering.Universal
                 cmd.SetGlobalVector(k_InvertedFilterPropIDs[i], blendStyle.maskTextureChannelFilter.inverted);
             }
 
-            cmd.SetGlobalTexture(k_FalloffLookupID, pass.rendererData.fallOffLookup);
+            cmd.SetGlobalTexture(k_FalloffLookupID, Light2DLookupTexture.GetFalloffLookupTexture());
         }
 
         private static float GetNormalizedInnerRadius(Light2D light)
@@ -262,22 +265,24 @@ namespace UnityEngine.Experimental.Rendering.Universal
             return (angle / 360.0f);
         }
 
-        private static void GetScaledLightInvMatrix(Light2D light, out Matrix4x4 retMatrix)
+        private static void GetScaledLightInvMatrix(Light2D light, out Matrix4x4 retMatrix, bool includeRotation)
         {
             var outerRadius = light.pointLightOuterRadius;
             var lightScale = Vector3.one;
             var outerRadiusScale = new Vector3(lightScale.x * outerRadius, lightScale.y * outerRadius, lightScale.z * outerRadius);
 
             var transform = light.transform;
+            var rotation = includeRotation ? transform.rotation : Quaternion.identity;
 
-            var scaledLightMat = Matrix4x4.TRS(transform.position, transform.rotation, outerRadiusScale);
+            var scaledLightMat = Matrix4x4.TRS(transform.position, rotation, outerRadiusScale);
             retMatrix = Matrix4x4.Inverse(scaledLightMat);
         }
 
-        private static void SetPointLightShaderGlobals(IRenderPass2D pass, CommandBuffer cmd, Light2D light)
+        private static void SetPointLightShaderGlobals(CommandBuffer cmd, Light2D light)
         {
             // This is used for the lookup texture
-            GetScaledLightInvMatrix(light, out var lightInverseMatrix);
+            GetScaledLightInvMatrix(light, out var lightInverseMatrix, true);
+            GetScaledLightInvMatrix(light, out var lightNoRotInverseMatrix, false);
 
             var innerRadius = GetNormalizedInnerRadius(light);
             var innerAngle = GetNormalizedAngle(light.pointLightInnerAngle);
@@ -286,11 +291,12 @@ namespace UnityEngine.Experimental.Rendering.Universal
 
             cmd.SetGlobalVector(k_LightPositionID, light.transform.position);
             cmd.SetGlobalMatrix(k_LightInvMatrixID, lightInverseMatrix);
+            cmd.SetGlobalMatrix(k_LightNoRotInvMatrixID, lightNoRotInverseMatrix);
             cmd.SetGlobalFloat(k_InnerRadiusMultID, innerRadiusMult);
             cmd.SetGlobalFloat(k_OuterAngleID, outerAngle);
             cmd.SetGlobalFloat(k_InnerAngleMultID, 1 / (outerAngle - innerAngle));
             cmd.SetGlobalTexture(k_LightLookupID, Light2DLookupTexture.GetLightLookupTexture());
-            cmd.SetGlobalTexture(k_FalloffLookupID, pass.rendererData.fallOffLookup);
+            cmd.SetGlobalTexture(k_FalloffLookupID, Light2DLookupTexture.GetFalloffLookupTexture());
             cmd.SetGlobalFloat(k_FalloffIntensityID, light.falloffIntensity);
             cmd.SetGlobalFloat(k_IsFullSpotlightID, innerAngle == 1 ? 1.0f : 0.0f);
 
@@ -368,12 +374,7 @@ namespace UnityEngine.Experimental.Rendering.Universal
                 if (!Light2DManager.GetGlobalColor(layerToRender, i, out var clearColor))
                     clearColor = Color.black;
 
-                var anyLights = (layerBatch.lightStats.blendStylesWithLights & (uint)(1 << i)) != 0;
-
-                var desc = rtDesc;
-                if (!anyLights) // No lights -- create tiny texture
-                    desc.width = desc.height = 4;
-                var identifier = layerBatch.GetRTId(cmd, desc, i);
+                var identifier =  layerBatch.GetRTId(cmd, rtDesc, i);
 
                 cmd.SetRenderTarget(identifier,
                     RenderBufferLoadAction.DontCare,
@@ -382,17 +383,14 @@ namespace UnityEngine.Experimental.Rendering.Universal
                     RenderBufferStoreAction.DontCare);
                 cmd.ClearRenderTarget(false, true, clearColor);
 
-                if (anyLights)
-                {
-                    RenderLightSet(
-                        pass, renderingData,
-                        i,
-                        cmd,
-                        layerToRender,
-                            identifier,
-                        pass.rendererData.lightCullResult.visibleLights
-                    );
-                }
+                RenderLightSet(
+                    pass, renderingData,
+                    i,
+                    cmd,
+                    layerToRender,
+                    identifier,
+                    pass.rendererData.lightCullResult.visibleLights
+                );
 
                 cmd.EndSample(sampleName);
             }
