@@ -47,11 +47,8 @@ editor_versions:
       revision: 92852ae685d86ada439969305ade7595f9c31ef9
       version: ''
     linux:
-      revision: 92852ae685d86ada439969305ade7595f9c31ef9
+      revision: 9d3b3b304bf5b2d436d0b78e45ce4318d91bf881
       version: ''
     macos:
-      revision: 92852ae685d86ada439969305ade7595f9c31ef9
-      version: ''
-    windows:
       revision: 92852ae685d86ada439969305ade7595f9c31ef9
       version: ''
